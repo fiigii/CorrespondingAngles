@@ -1,0 +1,62 @@
+高阶函数
+
+haskell中的函数可以作为参数和返回值传来传去，这样的函数就被称作高阶函数。高阶函数可不只是某简单特性而已，它贯穿于haskell的方方面面。要拒绝循环与状态的改变而通过定义问题"是什么"来解决问题，高阶函数必不可少。它们是编码的得力工具。
+
+柯里函数
+本质上，haskell的所有函数都只有一个参数，那么我们先前编那么多含有多个参数的函数又是怎么回事? 呵，小伎俩! 所有多个参数的函数都是柯里函数。 什么意思呢? 取一个例子最好理解，就拿我们的好朋友max函数说事吧。它看起来像是取两个参数，返回较大的那个数。 实际上，执行max 4 5时，它会首先返回一个取一个参数的函数，其返回值不是4就是该参数，取决于谁大。 然后，以5为参数调用它，并取得最终结果。 这听着挺绕口的，不过这一概念十分的酷! 如下的两个调用是等价的：
+
+ghci> max 4 5 
+5 
+ghci> (max 4) 5 
+5
+
+把空格放到两个东西之间，称作函数调用。它有点像个运算符，并拥有最高的优先级。 看看max函数的类型:max :: (Ord a) => a -> a -> a。 也可以写作:max :: (Ord a) => a -> (a -> a)。 可以读作max取一个参数a，并返回一个函数(就是那个->)，这个函数取一个a类型的参数，返回一个a。 这便是为何只用箭头来分隔参数和返回值类型。
+
+这样的好处又是如何? 简言之，我们若以不全的参数来调用某函数，就可以得到一个不全调用的函数。 如果你高兴，构造新函数就可以如此便捷，将其传给另一个函数也是同样方便。
+
+看下这个函数，简单至极:
+
+multThree :: (Num a) => a -> a -> a -> a 
+multThree x y z = x * y * z
+我们若执行mulThree 3 5 9或((mulThree 3) 5) 9，它背后是如何运作呢？ 首先，按照空格分隔，把3交给mulThree。 这返回一个返回函数的函数。 然后把5交给它，返回一个取一个参数并使之乘以15的函数。 最后把9交给这一函数，返回135。 想想，这个函数的类型也可以写作multThree :: (Num a) => a -> (a -> (a -> a))，->前面的东西就是函数取的参数，后面的东西就是其返回值。 所以说，我们的函数取一个a，并返回一个类型为(Num a) => a -> (a -> a)的函数，类似，这一函数返回一个取一个a，返回一个类型为(Num a) => a -> a的函数。 而最后的这个函数就只取一个a并返回一个a，如下:
+
+ghci> let multTwoWithNine = multThree 9 
+ghci> multTwoWithNine 2 3 
+54 
+ghci> let multWithEighteen = multTwoWithNine 2 
+ghci> multWithEighteen 10 
+180
+前面提到，以不全的参数调用函数可以方便地创造新的函数。例如，搞个取一数与100比较大小的函数该如何? 大可这样:
+
+compareWithHundred :: (Num a，Ord a) => a -> Ordering 
+compareWithHundred x = compare 100 x
+用99调用它，就可以得到一个GT。 简单。 注意下在等号两边都有x。 想想compare 100会返回什么？一个取一数与100比较的函数。 Wow，这不正是我们想要的? 这样重写:
+
+compareWithHundred :: (Num a，Ord a) => a -> Ordering 
+compareWithHundred = compare 100
+类型声明依然相同，因为compare 100返回函数。 compare的类型为(Ord a) => a -> (a -> Ordering)，用100调用它后返回的函数类型为(Num a，Ord a) => a -> Ordering，同时由于100还是Num类型类的实例，所以还得另留一个类约束。
+
+Yo! 你得保证已经弄明白了柯里函数与不全调用的原理，它们很重要！
+
+中缀函数也可以不全调用，用括号把它和一边的参数括在一起就行了。 这返回一个取一参数并将其补到缺少的那一端的函数。 一个简单函数如下:
+
+divideByTen :: (Floating a) => a -> a 
+divideByTen = (/10)
+调用divideByTen 200就是(/10) 200，和200 / 10等价。
+
+一个检查字符是否为大写的函数:
+
+isUpperAlphanum :: Char -> Bool 
+isUpperAlphanum = (`elem` ['A'..'Z'])
+唯一的例外就是-运算符，按照前面提到的定义，(-4)理应返回一个并将参数减4的函数，而实际上，处于计算上的方便，(-4)表示负4。 若你一定要弄个将参数减4的函数，就用subtract好了，像这样(subtract 4).
+
+若不用let给它命名或传到另一函数中，在ghci中直接执行multThree 3 4会怎样?
+
+ghci> multThree 3 4 
+:1:0: 
+No instance for (Show (t -> t)) 
+arising from a use of `print' at :1:0-12 
+Possible fix: add an instance declaration for (Show (t -> t)) 
+In the expression: print it 
+In a 'do' expression: print it
+ghci说，这一表达式返回了一个a -> a类型的函数，但它不知道该如何显示它。 函数不是Show类型类的实例，所以我们不能得到表示一函数内容的字符串。 若在ghci中计算1+1，它会首先计算得2，然后调用show 2得到该数值的字符串表示，即"2"，再输出到屏幕.

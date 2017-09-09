@@ -1,0 +1,53 @@
+Let it be let绑定与where绑定很相似。where绑定是在函数底部定义名字，对包括所有门卫在内的整函数可见。let绑定则是个表达式，允许你在任何位置定义局部变量，而对不同的门卫不可见。正如haskell中所有赋值结构一样，let绑定也可以使用模式匹配。看下它的实际应用！这是个依据半径和高度求圆柱体表面积的函数：
+
+cylinder :: (RealFloat a) => a -> a -> a   
+cylinder r h =  
+    let sideArea = 2 * pi * r * h   
+        topArea = pi * r ^2   
+    in  sideArea + 2 * topArea  
+
+let的格式为let [bindings] in [expressions]。在let中绑定的名字仅对in部分可见。let里面定义的名字也得对齐到一列。不难看出，这用where绑定也可以做到。那么它俩有什么区别呢？看起来无非就是，let把绑定放在语句前面而where放在后面嘛。
+
+不同之处在于，let绑定本身是个表达式，而where绑定则是个语法结构。还记得前面我们讲if语句时提到它是个表达式，因而可以随处安放？
+
+ghci> [if 5 > 3 then "Woo" else "Boo", if 'a' > 'b' then "Foo" else "Bar"]   
+["Woo", "Bar"]   
+ghci> 4 * (if 10 > 5 then 10 else 0) + 2   
+42
+用let绑定也可以实现：
+
+ghci> 4 * (let a = 9 in a + 1) + 2   
+42  
+let也可以定义局部函数：
+
+ghci> [let square x = x * x in (square 5, square 3, square 2)]   
+[(25,9,4)]  
+若要在一行中绑定多个名字，再将它们排成一列显然是不可以的。不过可以用分号将其分开。
+
+ghci> (let a = 100; b = 200; c = 300 in a*b*c, let foo="Hey "; bar = "there!" in foo ++ bar)   
+(6000000,"Hey there!")  
+最后那个绑定后面的分号不是必须的，不过加上也没关系。如我们前面所说，你可以在let绑定中使用模式匹配。这在从Tuple取值之类的操作中很方便。
+
+ghci> (let (a,b,c) = (1,2,3) in a+b+c) * 100   
+600  
+你也可以把let绑定放到List Comprehension中。我们重写下那个计算bmi值的函数，用个let替换掉原先的where。
+
+calcBmis :: (RealFloat a) => [(a, a)] -> [a]   
+calcBmis xs = [bmi | (w, h) <- xs, let bmi = w / h ^ 2]
+List Comprehension中let绑定的样子和限制条件差不多，只不过它做的不是过滤，而是绑定名字。let中绑定的名字在输出函数及限制条件中都可见。这一来我们就可以让我们的函数只返回胖子的bmi值：
+
+calcBmis :: (RealFloat a) => [(a, a)] -> [a]   
+calcBmis xs = [bmi | (w, h) <- xs, let bmi = w / h ^ 2, bmi >= 25.0]
+在(w, h) <- xs这里无法使用bmi这名字，因为它在let绑定的前面。
+
+在List Comprehension中我们忽略了let绑定的in部分，因为名字的可见性已经预先定义好了。不过，把一个let...in放到限制条件中也是可以的，这样名字只对这个限制条件可见。在GHCi中in部分也可以省略，名字的定义就在整个交互中可见。
+
+ghci> let zoot x y z = x * y + z   
+ghci> zoot 3 9 2   
+29   
+ghci> let boot x y z = x * y + z in boot 3 4 2   
+14   
+ghci> boot   
+< interactive>:1:0: Not in scope: `boot'
+你说既然let已经这么好了，还要where干嘛呢？嗯，let是个表达式，定义域限制的相当小，因此不能在多个门卫中使用。一些朋友更喜欢where，因为它是跟在函数体后面，把主函数体距离类型声明近一些会更易读。
+

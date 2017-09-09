@@ -1,0 +1,110 @@
+注意，门卫!
+模式用来检查一个值是否合适并从中取值，而门卫（guard）则用来检查一个值的某项属性是否为真。咋一听有点像是if语句，实际上也正是如此。不过处理多个条件分支时门卫的可读性要高些，并且与模式匹配契合的很好。
+
+
+在讲解它的语法前，我们先看一个用到门卫的函数。它会依据你的BMI值（body mass index，身体质量指数）来不同程度地侮辱你。BMI值即为体重除以身高的平方。如果小于18.5，就是太瘦；如果在18.5到25之间，就是正常；25到30之间，超重；如果超过30，肥胖。这就是那个函数（我们目前暂不为您计算bmi，它只是直接取一个emi值）。
+
+bmiTell :: (RealFloat a) => a -> String   
+bmiTell bmi   
+    | bmi <= 18.5 = "You're underweight, you emo, you!"   
+    | bmi <= 25.0 = "You're supposedly normal. Pffft, I bet you're ugly!"   
+    | bmi <= 30.0 = "You're fat! Lose some weight, fatty!"   
+    | otherwise   = "You're a whale, congratulations!"  
+门卫由跟在函数名及参数后面的竖线标志，通常他们都是靠右一个缩进排成一列。一个门卫就是一个布尔表达式，如果为真，就使用其对应的函数体。如果为假，就送去见下一个门卫，如之继续。如果我们用24.3调用这个函数，它就会先检查它是否小于等于18.5，显然不是，于是见下一个门卫。24.3小于25.0，因此通过了第二个门卫的检查，就返回第二个字符串。
+
+在这里则是相当的简洁，不过不难想象这在命令式语言中又会是怎样的一棵if-else树。由于if-else的大树比较杂乱，若是出现问题会很难发现，门卫对此则十分清楚。
+
+最后的那个门卫往往都是otherwise，它的定义就是简单一个otherwise = True，捕获一切。这与模式很相像，只是模式检查的是匹配，而它们检查的是布尔表达式 。如果一个函数的所有门卫都没有通过（而且没有提供otherwise作万能匹配），就转入下一模式。这便是门卫与模式契合的地方。如果始终没有找到合适的门卫或模式，就会发生一个错误。
+
+当然，门卫可以在含有任意数量参数的函数中使用。省得用户在使用这函数之前每次都自己计算bmi。我们修改下这个函数，让它取身高体重为我们计算。
+
+bmiTell :: (RealFloat a) => a -> a -> String   
+bmiTell weight height   
+    | weight / height ^ 2 <= 18.5 = "You're underweight, you emo, you!"   
+    | weight / height ^ 2 <= 25.0 = "You're supposedly normal. Pffft, I bet you're ugly!"   
+    | weight / height ^ 2 <= 30.0 = "You're fat! Lose some weight, fatty!"   
+    | otherwise                 = "You're a whale, congratulations!"    
+看看我胖不胖......
+
+ghci> bmiTell 85 1.90   
+"You're supposedly normal. Pffft, I bet you're ugly!"  
+Yay!我不胖！不过haskell依然说我很猥琐...什么道理...
+
+注意下，函数名和参数的后面并没有=。许多新人容易搞出语法错误，就是因为在后面加上了=。
+
+另一个简单的例子：实现个自己的max函数。应该还记得，它是取两个可比较的值，返回较大的那个。
+
+max' :: (Ord a) => a -> a -> a   
+max' a b    
+    | a > b     = a   
+    | otherwise = b  
+门卫也可以堆一行里面。这样的可读性会差些，因而是不被鼓励的。即使是较短的函数也是如此，仅仅出于演示，我们可以这样重写max'：
+
+max' :: (Ord a) => a -> a -> a   
+max' a b | a > b = a | otherwise = b  
+Ugh！一点都不好读！继续进发，用门卫实现我们自己的compare函数：
+
+myCompare :: (Ord a) => a -> a -> Ordering   
+a `myCompare` b   
+    | a > b     = GT   
+    | a == b    = EQ   
+    | otherwise = LT  
+ghci> 3 `myCompare` 2   
+GT  
+Note：通过反单引号，我们不仅可以以中缀形式调用函数，也可以在定义函数的时候使用它。有时这样会更易读。
+Where?
+前一节中我们写了这个bmi计算函数：
+
+bmiTell :: (RealFloat a) => a -> a -> String   
+bmiTell weight height   
+    | weight / height ^ 2 <= 18.5 = "You're underweight, you emo, you!"   
+    | weight / height ^ 2 <= 25.0 = "You're supposedly normal. Pffft, I bet you're ugly!"   
+    | weight / height ^ 2 <= 30.0 = "You're fat! Lose some weight, fatty!"   
+    | otherwise                   = "You're a whale, congratulations!"
+注意，我们重复了3次。我们重复了3次。程序员的字典里不应该有“重复”这个词。既然发现有重复，那么给它一个名字来代替这三个表达式会更好些。嗯，我们可以这样修改：
+
+bmiTell :: (RealFloat a) => a -> a -> String   
+bmiTell weight height   
+    | bmi <= 18.5 = "You're underweight, you emo, you!"   
+    | bmi <= 25.0 = "You're supposedly normal. Pffft, I bet you're ugly!"   
+    | bmi <= 30.0 = "You're fat! Lose some weight, fatty!"   
+    | otherwise   = "You're a whale, congratulations!"   
+    where bmi = weight / height ^ 2
+我们的where关键字跟在门卫后面（最好是与竖线缩进一致），可以定义多个名字和函数。这些名字对每个门卫都是可见的，这一来就避免了重复。如果我们打算换种方式计算bmi，只需进行一次修改就行了。通过命名，我们提升了代码的可读性，并且由于bmi只计算了一次，函数的执行效率也有所提升。我们可以再做下修改：
+
+bmiTell :: (RealFloat a) => a -> a -> String   
+bmiTell weight height   
+    | bmi <= skinny = "You're underweight, you emo, you!"   
+    | bmi <= normal = "You're supposedly normal. Pffft, I bet you're ugly!"   
+    | bmi <= fat    = "You're fat! Lose some weight, fatty!"   
+    | otherwise     = "You're a whale, congratulations!"   
+    where bmi = weight / height ^ 2   
+          skinny = 18.5   
+          normal = 25.0   
+          fat = 30.0
+函数在where绑定中定义的名字只对本函数可见，因此我们不必担心它会污染其他函数的命名空间。注意，其中的名字都是一列垂直排开，如果不这样规范，haskell就搞不清楚它们在哪个地方了。
+
+where绑定不会在多个模式中共享。如果你在一个函数的多个模式中重复用到同一名字，就应该把它置于全局定义之中。
+
+where绑定也可以使用模式匹配！前面那段代码可以改成：
+
+...   
+where bmi = weight / height ^ 2   
+      (skinny, normal, fat) = (18.5, 25.0, 30.0)  
+我们再搞个简单函数，让它告诉我们姓名的首字母：
+
+initials :: String -> String -> String   
+initials firstname lastname = [f] ++ ". " ++ [l] ++ "."   
+    where (f:_) = firstname   
+          (l:_) = lastname  
+我们完全按可以在函数的参数上直接使用模式匹配（这样更短更简洁），在这里只是为了演示在where语句中同样可以使用模式匹配：
+
+where绑定可以定义名字，也可以定义函数。保持健康的编程风格，我们搞个计算一组bmi的函数：
+
+calcBmis :: (RealFloat a) => [(a, a)] -> [a]   
+calcBmis xs = [bmi w h | (w, h)  
+    where bmi weight height = weight / height ^ 2  
+这就全了！在这里将bmi搞成一个函数，是因为我们不能依据参数直接进行计算，而必须先从传入函数的list中取出每个序对并计算对应的值。
+
+where绑定还可以嵌套。有个已被广泛接受的理念，就是一个函数应该有几个辅助函数。而每个辅助函数也可以通过where拥有各自的辅助函数。
+

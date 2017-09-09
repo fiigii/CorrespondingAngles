@@ -1,0 +1,61 @@
+我是List Comprehension
+
+学过数学的你对集合的comprehension（Set Comprehension）概念一定不会陌生。通过它，可以从既有的集合中按照规则产生一个新集合。前十个偶数的set comprehension可以表示为，竖线左端的部分是输出函数，x是变量，N是输入集合。在haskell下，我们可以通过类似take 10 [2,4..]的代码来实现。但若是把简单的乘2改成更复杂的函数操作该怎么办呢？用list comprehension，它与set comprehension十分的相似，用它取前十个偶数轻而易举。这个list comprehension可以表示为：
+
+ghci> [x*2 | x <- [1..10]]   
+[2,4,6,8,10,12,14,16,18,20]
+如你所见，结果正确。给这个comprehension再添个限制条件（predicate），它与前面的条件由一个逗号分隔。在这里，我们要求只取乘以2后大于等于12的元素。
+
+ghci> [x*2 | x <- [1..10], x*2 >= 12]   
+[12,14,16,18,20] 
+cool，灵了。若是取50到100间所有除7的余数为3的元素该怎么办？简单：
+
+ghci> [ x | x <- [50..100], x `mod` 7 == 3]   
+[52,59,66,73,80,87,94]  
+成功！从一个List中筛选出符合特定限制条件的操作也可以称为过滤（flitering）。即取一组数并且按照一定的限制条件过滤它们。再举个例子 吧，假如我们想要一个comprehension，它能够使list中所有大于10的奇数变为“BANG”，小于10的奇数变为“BOOM”，其他则统统 扔掉。方便重用起见，我们将这个comprehension置于一个函数之中。
+
+boomBangs xs = [ if x < 10 then "BOOM!" else "BANG!" | x <- xs, odd x]  
+这个comprehension的最后部分就是限制条件，使用odd函数判断是否为奇数：返回True，就是奇数，该List中的元素才被包含。
+
+ghci> boomBangs [7..13]   
+["BOOM!","BOOM!","BANG!","BANG!"]  
+也可以加多个限制条件。若要达到10到20间所有不等于13，15或19的数，可以这样：
+
+ghci> [ x | x <- [10..20], x /= 13, x /= 15, x /= 19]   
+[10,11,12,14,16,17,18,20] 
+除了多个限制条件之外，从多个List中取元素也是可以的。这样的话comprehension会把所有的元素组合交付给我们的输出函数。在不过滤的前提 下，取自两个长度为4的集合的comprehension会产生一个长度为16的List。假设有两个List，[2,5,10]和[8,10,11]， 要取它们所有组合的积，可以这样：
+
+ghci> [ x*y | x <- [2,5,10], y <- [8,10,11]]   
+[16,20,22,40,50,55,80,100,110]  
+意料之中，得到的新List长度为9。若只取乘积为50的结果该如何？
+
+ghci> [ x*y | x <-[2,5,10], y <- [8,10,11], x*y > 50]   
+[55,80,100,110]  
+取个包含一组名词和形容词的List comprehension吧，写诗的话也许用得着。
+
+ghci> let nouns = ["hobo","frog","pope"]   
+ghci> let adjectives = ["lazy","grouchy","scheming"]   
+ghci> [adjective ++ " " ++ noun | adjective <- adjectives, noun <- nouns]   
+["lazy hobo","lazy frog","lazy pope","grouchy hobo","grouchy frog", "grouchy pope","scheming hobo", 
+"scheming frog","scheming pope"] 
+明白！让我们编写自己的length函数吧！就叫做length'!
+
+length' xs = sum [1 | _ <- xs]  
+_表示我们并不关心从List中取什么值，与其弄个永远不用的变量，不如直接一个_。这个函数将一个List中所有元素置换为1，并且使其相加求和。得到的结果便是我们的List长度。友情提示：字符串也是List，完全可以使用list comprehension来处理字符串。如下是个除去字符串中所有非大写字母的函数：
+
+removeNonUppercase st = [ c | c <- st, c `elem` ['A'..'Z']]  
+测试一下：
+
+ghci> removeNonUppercase "Hahaha! Ahahaha!"   
+"HA"   
+ghci> removeNonUppercase "IdontLIKEFROGS"   
+"ILIKEFROGS"  
+在这里，限制条件做了所有的工作。它说：只有在['A'..'Z']之间的字符才可以被包含。
+
+若操作含有List的List，使用嵌套的List comprehension也是可以的。假设有个包含许多数值的List的List，让我们在不拆开它的前提下除去其中的所有奇数：
+
+ghci> let xxs = [[1,3,5,2,3,1,2,4,5],[1,2,3,4,5,6,7,8,9],[1,2,4,2,1,6,3,1,3,2,3,6]]   
+ghci> [ [ x | x <- xs, even x ] | xs <- xxs]   
+[[2,2,4],[2,4,6,8],[2,4,2,6,2,6]] 
+将List Comprehension分成多行也是可以的。若非在GHCI之下，还是将List Comprehension分成多行好，尤其是需要嵌套的时候。
+

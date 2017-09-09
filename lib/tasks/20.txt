@@ -1,0 +1,51 @@
+函数组合在数学中，函数组合是这样定义的：，表示组合两个函数成为一个函数。以x调用这一函数，就与用x调用g再用所得的结果调用f等价。haskell中的函数组合与之很像，即.函数。其定义为：(.) :: (b -> c) -> (a -> b) -> a -> c   
+f . g = \x -> f (g x)  
+
+注意下这类型声明，f的参数类型必须与g的返回类型相同。所以得到的组合函数的参数类型与g相同，返回类型与f相同。表达式negate . (*3)返回一个求一数字乘以3后的负数的函数。
+
+函数组合的用处之一就是生成新函数，并传递给其它函数。当然我们可以用lambda实现，但大多数情况下，使用函数组合无疑更直白。假设我们有一组由数字组成的list，要将其全部转为负数，很容易就想到应先取其绝对值，再取负数，像这样：
+
+ghci> map (\x -> negate (abs x)) [5,-3,-6,7,-3,2,-19,24]   
+[-5,-3,-6,-7,-3,-2,-19,-24]
+注意下这个lambda与那函数组合是多么的相像。用函数组合，我们可以将代码改为：
+
+ghci> map (negate . abs) [5,-3,-6,7,-3,2,-19,24]   
+[-5,-3,-6,-7,-3,-2,-19,-24]
+漂亮！函数组合是右结合的，我们同时组合多个函数。表达式f (g (z x))与(f . g . z) x等价。按照这个思路，我们可以将
+
+ghci> map (\xs -> negate (sum (tail xs))) [[1..5],[3..6],[1..7]]   
+[-14,-15,-27]
+改为：
+
+ghci> map (negate . sum . tail) [[1..5],[3..6],[1..7]]   
+[-14,-15,-27]
+不过含多个参数的函数该怎么办？好，我们可以使用不全调用使每个函数都只剩下一个参数。sum (replicate 5 (max 6.7 8.9))可以重写为(sum . replicate 5 . max 6.7) 8.9或sum . replicate 5 . max 6.7 $ 8.9。在这里会产生一个函数，它取与max 6.7同样的参数，并使用结果调用replicate 5再用sum求和。最后用8.9调用该函数。不过一般你可以这么读，用8.9调用max 6.7，然后使它replicate 5，再sum之。如果你打算用函数组合来替掉那堆括号，可以先在最靠近参数的函数后面加一个$，接着就用.组合其所有函数调用，而不用管最后那个参数。如果有这样一段代码：replicate 100 (product (map (*3) (zipWith max [1,2,3,4,5] [4,5,6,7,8])))，可以改为：replicate 100 . product . map (*3) . zipWith max [1,2,3,4,5] $ [4,5,6,7,8]。如果表达式以3个括号结尾，就表示你可以将其修改为函数组合的形式。
+
+函数组合的另一用途就是定义point free style（也称作pointless style）的函数。就拿我们之前写的函数作例子：
+
+sum' :: (Num a) => [a] -> a      
+sum' xs = foldl (+) 0 xs
+等号的两端都有个xs。由于有柯里化（Currying），我们可以省掉两端的xs。foldl (+) 0返回的就是一个取一list作参数的函数，我们把它修改为sum' = foldl (+) 0，这就是point free style。下面这个函数又该如何改成point free style呢？
+
+fn x = ceiling (negate (tan (cos (max 50 x))))
+像刚才那样简单去掉两端的x是不行的，函数体中x的右边还有括号。cos (max 50)是有错误的，你不能求一个函数的余弦。我们的解决方法就是，使用函数组合。
+
+fn = ceiling . negate . tan . cos . max 50
+漂亮！point free style会令你去思考函数的组合方式，而非数据的传递方式，更加简洁直白。你可以将一组简单的函数组合在一起，使之形成一个复杂的函数。不过函数若过于复杂，再使用point free style往往会适得其反，因此构造较长的函数组合链是不被鼓励的（虽然我本人热衷于函数组合）。更好的解决方法，就是使用let语句给中间的运算结果绑定一个名字，或者说把问题分解成几个小问题再组合到一起。这样一来我们代码的读者就可以轻松些，不必要纠结那巨长的函数组合链了。
+
+在map和filter那节中，我们求了小于10000的所有奇数的平方的和。如下就是将其置于一个函数中的样子：
+
+oddSquareSum :: Integer   
+oddSquareSum = sum (takeWhile (<10000) (filter odd (map (^2) [1..])))
+身为函数组合狂人，我可能会这么写：
+
+oddSquareSum :: Integer   
+oddSquareSum = sum . takeWhile (<10000) . filter odd . map (^2) $ [1..]
+不过若是给别人看，我可能就这么写了：
+
+oddSquareSum :: Integer   
+oddSquareSum =    
+    let oddSquares = filter odd $ map (^2) [1..]   
+        belowLimit = takeWhile (<10000) oddSquares   
+    in  sum belowLimit
+这段代码可赢不了代码花样大赛，不过我们的读者可能会觉得它比函数组合链更好看。
